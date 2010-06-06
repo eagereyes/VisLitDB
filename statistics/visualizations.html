@@ -1,0 +1,247 @@
+<html>
+<head>
+	<title>Conference Statistics Visualizations</title>
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js" type="text/javascript" charset="utf-8"></script>
+	<script src="protovis-r3.2.js" type="text/javascript"></script>
+</head>
+
+<body>
+	
+<p>These visualizations are used at <a href="http://eagereyes.org/service/acceptance-rates">the list of information visualization conference acceptance rates</a>. They require a modern browser with support for SVG and Canvas to work. Internet Explorer prior to IE 9 does not work.</p>
+
+<h2>Acceptance Rates</h2>
+
+<script type="text/javascript+protovis"><!--
+
+	var dataURL = "conferences.json";
+
+	var contentWidth = 460;
+	var contentHeight = 235;
+
+	var legendWidth = 60;
+	var leftWidth = 30;
+
+	var bottomHeight = 25;
+	var topPadding = 10;
+
+	var width = leftWidth+contentWidth+legendWidth;
+	var height = contentHeight+bottomHeight+topPadding;
+	var lastYear = 2010;
+	var firstYear = lastYear-20;
+
+	// load the data in a synchronous fashion. ASync would be neat but it's really not necessary
+	// and just makes things more complicated.
+	var JSONdata = $.ajax({ type: "GET", url: dataURL, async: false }).responseText;
+	var conferences = JSON.parse(JSONdata);
+
+	var numConferences = 0;
+
+	// for each conference, remove all years before firstYear, adjust their firstYear value if
+	// necessary, and calculate acceptance rates from accepted and submitted.
+	for (var c in conferences) {
+		if (conferences.hasOwnProperty(c)) {
+			var conf = conferences[c];
+			// cut off years that are too far back
+			if (conf.firstYear < firstYear) {
+				conf.accepted = conf.accepted.slice(firstYear-conf.firstYear, conf.accepted.length);
+				conf.submitted = conf.submitted.slice(firstYear-conf.firstYear, conf.submitted.length);
+				conf.firstYear = firstYear;
+			}
+
+			// calculate acceptance rates
+			var rates = [];
+			for (var i = 0; i < conf.submitted.length; i++) {
+				if (conf.submitted[i] > 0) {
+					rates[i] = conf.accepted[i]/conf.submitted[i];
+				} else {
+					rates[i] = 0;
+				}
+			}
+			conf.rates = rates;
+
+			conf.colorIndex = numConferences;
+
+			numConferences += 1;
+		}
+	}
+
+	// yearsAligned and percentAligned align the coordinate to the full pixel+.5,
+	// to avoid double-wide lines due to anti-aliasing
+	var years = pv.Scale.linear(firstYear, lastYear).range(leftWidth, leftWidth+contentWidth);
+	var yearsAligned = function(d) {
+		return Math.round(years(d))+.5;
+	}
+
+	var percent = pv.Scale.linear(0, .5).range(bottomHeight, bottomHeight+contentHeight);
+	var percentAligned = function(d) {
+		return Math.round(percent(d))+.5;
+	}
+
+	var color = pv.Colors.category10(numConferences);
+
+	// the year being pointed to by the mouse
+	var activeYear = -1;
+
+	// add a line for a conference to the chart. Also adds the indicator dots and value labels,
+	// but they're invisible until triggered by the "point" pseudo-event
+	var addLine = function(panel, conference, data, scale, percent) {
+		panel.add(pv.Line)
+			.data(data)
+			.bottom(scale)
+			.strokeStyle(color(conference.colorIndex))
+			.lineWidth(2)
+			.left(function() yearsAligned(conference.firstYear+this.index))
+			.segmented(true)
+			.visible(function(d) d > 0)
+			.event("point", function() { activeYear = conference.firstYear+this.index; return this.parent; })
+		    .event("unpoint", function() { activeYear = -1; return this.parent; })
+		.anchor().add(pv.Dot)
+			.size(2)
+			.fillStyle(color(conference.colorIndex))
+			.strokeStyle(color(conference.colorIndex))
+		    .visible(function() activeYear == conference.firstYear+this.index)
+		.anchor("top").add(pv.Label)
+			.textBaseline("bottom")
+			.textAlign("center")
+			.text(function(d) (percent)?Math.round(d * 100)+"%":d);
+	}
+
+	// ugly global variable to make it easier to order conferences in the legend in a particular
+	// way by calling the function below in the right sequence.
+	var legendIndex = 0;
+
+	// add a conference to the legend. Order is from top down.
+	var addLegend = function(panel, conference) {
+		panel.add(pv.Rule)
+			.strokeStyle(color(conference.colorIndex))
+			.bottom(contentHeight-legendIndex*15)
+			.left(contentWidth+leftWidth+5)
+			.width(15)
+			.lineWidth(2)
+		.anchor("right").add(pv.Label)
+			.text(conference.shortName)
+			.textBaseline("middle");
+
+		legendIndex += 1;
+	}
+
+	var makeLegend = function(panel) {
+		addLegend(panel, conferences.infovis);
+		addLegend(panel, conferences.vis);
+		addLegend(panel, conferences.eurovis);
+		addLegend(panel, conferences.vast);
+		addLegend(panel, conferences.uist);
+		addLegend(panel, conferences.chi);
+	}
+
+	var acceptanceRates = new pv.Panel()
+		.width(width).height(height)
+		.fillStyle("#fff")
+		.event("mousemove", pv.Behavior.point(Infinity).collapse("y"));
+
+	// year indicator for mouse-over
+	acceptanceRates.add(pv.Rule)
+		.left(function() yearsAligned(activeYear))
+		.visible(function() activeYear != -1)
+		.strokeStyle("#ddd")
+		.height(contentHeight)
+		.bottom(bottomHeight);
+
+	// horizontal background grid with % labels
+	acceptanceRates.add(pv.Rule)
+		.data(percent.ticks(10))
+		.strokeStyle("#eee")
+		.bottom(percentAligned)
+		.width(contentWidth+3)
+		.left(leftWidth-3)
+	.anchor("left").add(pv.Label)
+		.textBaseline("middle")
+		.visible(function() this.index > 0 && this.index % 2 == 0)
+		.text(function(d) Math.round(d*100) + "%");
+
+	// years and year ticks
+	acceptanceRates.add(pv.Rule)
+		.data(pv.range(firstYear, lastYear+1))
+		.left(yearsAligned)
+		.bottom(bottomHeight-4)
+		.height(4)
+	.anchor("bottom").add(pv.Label)
+		.textAlign("center")
+		.textBaseline("top")
+		.visible(function(d) (d % 5) == 0);
+
+	// lines in the chart
+	addLine(acceptanceRates, conferences.vis, conferences.vis.rates, percentAligned, true);
+	addLine(acceptanceRates, conferences.chi, conferences.chi.rates, percentAligned, true);
+	addLine(acceptanceRates, conferences.uist, conferences.uist.rates, percentAligned, true);
+	addLine(acceptanceRates, conferences.vast, conferences.vast.rates, percentAligned, true);
+	addLine(acceptanceRates, conferences.eurovis, conferences.eurovis.rates, percentAligned, true);
+	addLine(acceptanceRates, conferences.infovis, conferences.infovis.rates, percentAligned, true);	
+
+	makeLegend(acceptanceRates);
+
+	// done.
+	acceptanceRates.render();
+// -->
+</script>
+
+<h2>Numbers of Submissions</h2>
+
+<script type="text/javascript+protovis"><!--
+	var submissions = new pv.Panel()
+		.width(width).height(height)
+		.fillStyle("#fff")
+		.event("mousemove", pv.Behavior.point(Infinity).collapse("y"));
+
+	var submissionsScale = pv.Scale.linear(0, 1400).range(bottomHeight, bottomHeight+contentHeight);
+	var submissionsScaleAligned = function(d) {
+		return Math.round(submissionsScale(d))+.5;
+	}
+		
+	// year indicator for mouse-over
+	submissions.add(pv.Rule)
+		.left(function() yearsAligned(activeYear))
+		.visible(function() activeYear != -1)
+		.strokeStyle("#ddd")
+		.height(contentHeight)
+		.bottom(bottomHeight);
+
+	// horizontal background grid with labels
+	submissions.add(pv.Rule)
+		.data(submissionsScale.ticks(6))
+		.strokeStyle("#eee")
+		.bottom(submissionsScaleAligned)
+		.width(contentWidth+3)
+		.left(leftWidth-3)
+	.anchor("left").add(pv.Label)
+		.textBaseline("middle")
+		.visible(function(d) d > 0);
+
+	// years and year ticks
+	submissions.add(pv.Rule)
+		.data(pv.range(firstYear, lastYear+1))
+		.left(yearsAligned)
+		.bottom(bottomHeight-4)
+		.height(4)
+	.anchor("bottom").add(pv.Label)
+		.textAlign("center")
+		.textBaseline("top")
+		.visible(function(d) (d % 5) == 0);
+
+	// lines in the chart
+	addLine(submissions, conferences.vis, conferences.vis.submitted, submissionsScaleAligned, false);
+	addLine(submissions, conferences.chi, conferences.chi.submitted, submissionsScaleAligned, false);
+	addLine(submissions, conferences.uist, conferences.uist.submitted, submissionsScaleAligned, false);
+	addLine(submissions, conferences.vast, conferences.vast.submitted, submissionsScaleAligned, false);
+	addLine(submissions, conferences.eurovis, conferences.eurovis.submitted, submissionsScaleAligned, false);
+	addLine(submissions, conferences.infovis, conferences.infovis.submitted, submissionsScaleAligned, false);	
+
+	makeLegend(submissions);
+
+	// done.
+	submissions.render();
+// -->
+</script>
+
+</body>
+</html>
