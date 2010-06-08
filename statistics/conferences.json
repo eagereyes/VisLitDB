@@ -9,9 +9,9 @@
 	"eurovis": {
 		"shortName": "EuroVis",
 		"firstYear": 1999,
-		"lastYear": 2009,
-		"submitted": [64, 66, 68, 80, 62, 82, 101, 98, 93, 143, 143],
-		"accepted": [30, 27, 33, 31, 30, 39, 37, 43, 35, 45, 41]
+		"lastYear": 2010,
+		"submitted": [64, 66, 68, 80, 62, 82, 102, 98, 93, 143, 143, 164],
+		"accepted": [30, 27, 33, 31, 30, 39, 36, 43, 35, 45, 41, 48]
 	},
 	"infovis": {
 		"shortName": "InfoVis",
