@@ -15,10 +15,10 @@
 	},
 	"infovis": {
 		"shortName": "InfoVis",
-		"firstYear": 2005,
+		"firstYear": 1995,
 		"lastYear": 2010,
-		"submitted": [114, 104, 116, 107, 141, 135],
-		"accepted": [31, 24, 27, 28, 37, 35]
+		"submitted": [37, 34, 27, 0, 47, 0, 63, 78, 90, 89, 114, 104, 116, 107, 141, 135],
+		"accepted": [18, 19, 16, 0, 19, 0, 22, 23, 29, 27, 31, 24, 27, 28, 37, 35]
 	},
 	"uist": {
 		"shortName": "UIST",
@@ -29,10 +29,10 @@
 	},
 	"vast": {
 		"shortName": "VAST",
-		"firstYear": 2007,
+		"firstYear": 2006,
 		"lastYear": 2010,
-		"submitted": [57, 58, 69, 94],
-		"accepted": [24, 21, 26, 26]
+		"submitted": [60, 57, 58, 69, 94],
+		"accepted": [26, 24, 21, 26, 26]
 	},
 	"vis": {
 		"shortName": "Vis",
