@@ -72,20 +72,22 @@
 		return Math.round(years(d))+.5;
 	}
 
-	var percent = pv.Scale.linear(0, .5).range(bottomHeight, bottomHeight+contentHeight);
+	var percent = pv.Scale.linear(0, .6).range(bottomHeight, bottomHeight+contentHeight);
 	var percentAligned = function(d) {
 		return Math.round(percent(d))+.5;
 	}
 
 	var color = pv.Colors.category10(numConferences);
 
+	var chiVisible = true;
+
 	// the year being pointed to by the mouse
 	var activeYear = -1;
 
 	// add a line for a conference to the chart. Also adds the indicator dots and value labels,
 	// but they're invisible until triggered by the "point" pseudo-event
-	var addLine = function(panel, conference, data, scale, percent) {
-		panel.add(pv.Line)
+	var addLine = function(panel, conference, data, scale, percent, isCHI) {
+		var line = panel.add(pv.Line)
 			.data(data)
 			.bottom(scale)
 			.strokeStyle(color(conference.colorIndex))
@@ -94,16 +96,21 @@
 			.segmented(true)
 			.visible(function(d) d > 0)
 			.event("point", function() { activeYear = conference.firstYear+this.index; return this.parent; })
-		    .event("unpoint", function() { activeYear = -1; return this.parent; })
-		.anchor().add(pv.Dot)
+		    .event("unpoint", function() { activeYear = -1; return this.parent; });
+		var dot = line.anchor().add(pv.Dot)
 			.size(2)
 			.fillStyle(color(conference.colorIndex))
 			.strokeStyle(color(conference.colorIndex))
-		    .visible(function() activeYear == conference.firstYear+this.index)
-		.anchor("top").add(pv.Label)
+		    .visible(function(d) activeYear == conference.firstYear+this.index && d > 0);
+		var label = dot.anchor("top").add(pv.Label)
 			.textBaseline("bottom")
 			.textAlign("center")
 			.text(function(d) (percent)?Math.round(d * 100)+"%":d);
+			
+		if (isCHI) {
+			line.visible(function(d) d > 0 && chiVisible);
+			dot.visible(function() activeYear == conference.firstYear+this.index && chiVisible);
+		}
 	}
 
 	// ugly global variable to make it easier to order conferences in the legend in a particular
@@ -111,27 +118,34 @@
 	var legendIndex = 0;
 
 	// add a conference to the legend. Order is from top down.
-	var addLegend = function(panel, conference) {
-		panel.add(pv.Rule)
+	var addLegend = function(panel, conference, isCHI) {
+
+		var rule = panel.add(pv.Rule)
 			.strokeStyle(color(conference.colorIndex))
 			.bottom(contentHeight-legendIndex*15)
 			.left(contentWidth+leftWidth+5)
 			.width(15)
-			.lineWidth(2)
-		.anchor("right").add(pv.Label)
+			.lineWidth(2);
+			
+		var label = rule.anchor("right").add(pv.Label)
 			.text(conference.shortName)
 			.textBaseline("middle");
+
+		if (isCHI) {
+			rule.visible(function() chiVisible);
+			label.visible(function() chiVisible)
+		}
 
 		legendIndex += 1;
 	}
 
 	var makeLegend = function(panel) {
-		addLegend(panel, conferences.infovis);
-		addLegend(panel, conferences.vis);
-		addLegend(panel, conferences.eurovis);
-		addLegend(panel, conferences.vast);
-		addLegend(panel, conferences.uist);
-		addLegend(panel, conferences.chi);
+		addLegend(panel, conferences.infovis, false);
+		addLegend(panel, conferences.vis, false);
+		addLegend(panel, conferences.eurovis, false);
+		addLegend(panel, conferences.vast, false);
+		addLegend(panel, conferences.uist, false);
+		addLegend(panel, conferences.chi, true);
 	}
 
 	var acceptanceRates = new pv.Panel()
@@ -149,7 +163,7 @@
 
 	// horizontal background grid with % labels
 	acceptanceRates.add(pv.Rule)
-		.data(percent.ticks(10))
+		.data(pv.range(0, .65, .05))
 		.strokeStyle("#eee")
 		.bottom(percentAligned)
 		.width(contentWidth+3)
@@ -171,12 +185,12 @@
 		.visible(function(d) (d % 5) == 0);
 
 	// lines in the chart
-	addLine(acceptanceRates, conferences.vis, conferences.vis.rates, percentAligned, true);
-	addLine(acceptanceRates, conferences.chi, conferences.chi.rates, percentAligned, true);
-	addLine(acceptanceRates, conferences.uist, conferences.uist.rates, percentAligned, true);
-	addLine(acceptanceRates, conferences.vast, conferences.vast.rates, percentAligned, true);
-	addLine(acceptanceRates, conferences.eurovis, conferences.eurovis.rates, percentAligned, true);
-	addLine(acceptanceRates, conferences.infovis, conferences.infovis.rates, percentAligned, true);	
+	addLine(acceptanceRates, conferences.vis, conferences.vis.rates, percentAligned, true, false);
+	addLine(acceptanceRates, conferences.chi, conferences.chi.rates, percentAligned, true, false);
+	addLine(acceptanceRates, conferences.uist, conferences.uist.rates, percentAligned, true, false);
+	addLine(acceptanceRates, conferences.vast, conferences.vast.rates, percentAligned, true, false);
+	addLine(acceptanceRates, conferences.eurovis, conferences.eurovis.rates, percentAligned, true, false);
+	addLine(acceptanceRates, conferences.infovis, conferences.infovis.rates, percentAligned, true, false);	
 
 	makeLegend(acceptanceRates);
 
@@ -208,7 +222,7 @@
 
 	// horizontal background grid with labels
 	submissions.add(pv.Rule)
-		.data(submissionsScale.ticks(6))
+		.data(function() submissionsScale.ticks(6))
 		.strokeStyle("#eee")
 		.bottom(submissionsScaleAligned)
 		.width(contentWidth+3)
@@ -229,19 +243,34 @@
 		.visible(function(d) (d % 5) == 0);
 
 	// lines in the chart
-	addLine(submissions, conferences.vis, conferences.vis.submitted, submissionsScaleAligned, false);
-	addLine(submissions, conferences.chi, conferences.chi.submitted, submissionsScaleAligned, false);
-	addLine(submissions, conferences.uist, conferences.uist.submitted, submissionsScaleAligned, false);
-	addLine(submissions, conferences.vast, conferences.vast.submitted, submissionsScaleAligned, false);
-	addLine(submissions, conferences.eurovis, conferences.eurovis.submitted, submissionsScaleAligned, false);
-	addLine(submissions, conferences.infovis, conferences.infovis.submitted, submissionsScaleAligned, false);	
+	addLine(submissions, conferences.vis, conferences.vis.submitted, submissionsScaleAligned, false, false);
+	addLine(submissions, conferences.chi, conferences.chi.submitted, submissionsScaleAligned, false, true);
+	addLine(submissions, conferences.uist, conferences.uist.submitted, submissionsScaleAligned, false, false);
+	addLine(submissions, conferences.vast, conferences.vast.submitted, submissionsScaleAligned, false, false);
+	addLine(submissions, conferences.eurovis, conferences.eurovis.submitted, submissionsScaleAligned, false, false);
+	addLine(submissions, conferences.infovis, conferences.infovis.submitted, submissionsScaleAligned, false, false);	
 
 	makeLegend(submissions);
 
 	// done.
 	submissions.render();
+
+	var toggleCHI = function() {
+		if(document.toggleform.includeCHI.checked) {
+			submissionsScale = pv.Scale.linear(0, 1400).range(bottomHeight, bottomHeight+contentHeight);
+			chiVisible = true;
+		} else {
+			submissionsScale = pv.Scale.linear(0, 300).range(bottomHeight, bottomHeight+contentHeight);
+			chiVisible = false;
+		}
+		submissions.render();
+	}
+
 // -->
 </script>
 
+<form name="toggleform">
+<input type="checkbox" name="includeCHI" checked onClick="toggleCHI()">Include CHI</input>
+</form>
 </body>
 </html>
